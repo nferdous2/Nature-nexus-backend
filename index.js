@@ -15,6 +15,7 @@ const client = new MongoClient(uri, {
 });
 
 const port = process.env.PORT || 8000;
+let loggedInUsers = {}; // Store logged in users
 
 app.get("/", (req, res) => {
   res.send("Running nature_naxus site");
@@ -24,9 +25,9 @@ app.get("/", (req, res) => {
 async function run() {
   try {
     await client.connect();
-    const database = client.db("aeaw");
-    const usersCollection = database.collection("aeawUsers");
-
+    const database = client.db("nature_nexus");
+    const usersCollection = database.collection("Users");
+    const productCollection = database.collection("products");
     // Register the user
     app.post("/register", async (req, res) => {
       try {
@@ -109,6 +110,15 @@ async function run() {
     delete loggedInUsers[token];
     res.json({ message: "Logged out successfully" });
   });
+
+  
+  // products
+  app.get("/products",async(req,res) => {
+    const product = {};
+    const cursor= productCollection.find(product);
+    const products = await cursor.toArray();
+    res.send(products);
+  })
     app.listen(port, () => {
       console.log("Running on port", port);
     });
