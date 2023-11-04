@@ -161,7 +161,8 @@ async function run() {
       res.json({ message: "Logged out successfully" });
     });
 
-    //add products
+
+    //add  all products
     app.post("/products", async (req, res) => {
       const { name, price, category, image} = req.body;
       const product = { name, price, category, image};
