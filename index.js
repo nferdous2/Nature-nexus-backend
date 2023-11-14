@@ -48,13 +48,14 @@ async function run() {
 
     app.post("/register", async (req, res) => {
       try {
-        const { name, address, email, password } = req.body;
+        const { name, address, email, password,role } = req.body;
         const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: "User already exists" });
         }
         const verificationToken = uuidv4();
         const user = {
+          role:"user",
           name,
           address,
           email,
@@ -126,34 +127,58 @@ async function run() {
     app.post("/login", async (req, res) => {
       const { email, password } = req.body;
       const user = await usersCollection.findOne({ email });
+    
       if (!user) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
+    
       // Compare the provided password with the stored password
       if (password !== user.password) {
         return res.status(401).json({ error: "Invalid email or password" });
       }
+    
       // Generate JWT token
-      const token = jwt.sign({ us1erId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
-      res.json({ message: "Login successfully", token });
+      const token = jwt.sign(
+        { userId: user._id, role: user.role || "user" }, // Ensure user.role exists or default to "user"
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+    
+      res.json({ message: "Login successfully", token, role: user.role });
     });
+    
     //admin add
-    // admin Login endpoint
-    app.post('/adminlogin', (req, res) => {
-      const { email, password } = req.body;
-
-      const user = usersCollection.find(u => u.email === email && u.password === password);
-
-      if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
+    app.post("/admin", async (req, res) => {
+      try {
+        const { email, password } = req.body;
+    
+        // Assuming role is hardcoded as "admin" for admin registrations
+        const user = {
+          role: "admin", // Set the role to "admin" for admin registrations
+          email,
+          password,
+        };
+    
+        const result = await usersCollection.insertOne(user);
+    
+        const token = jwt.sign(
+          { userId: result.insertedId, role: user.role },
+          process.env.JWT_SECRET,
+          { expiresIn: "1d" }
+        );
+    
+        res.json({
+          message: "Admin registered successfully",
+          token,
+          role: user.role,
+        });
+      } catch (err) {
+        console.error("Error registering admin:", err);
+        res.status(500).json({ message: "An error occurred" });
       }
-
-      res.json({ message: 'Login successful', user });
     });
-    //logout the user
+    
+
 
     app.post("/logout", (req, res) => {
       const token = req.headers.authorization;
@@ -164,16 +189,16 @@ async function run() {
 
     //add  all products
     app.post("/products", async (req, res) => {
-      const { name, price, category, image} = req.body;
-      const product = { name, price, category, image};
+      const { name, price, category, image } = req.body;
+      const product = { name, price, category, image };
       try {
         const result = await productCollection.insertOne(product);
-        res.json({ message:  "Product added successfully" });
+        res.json({ message: "Product added successfully" });
       } catch (error) {
         res.status(500).json({ message: "An error occurred while adding the product" });
       }
     });
-    
+
     // get products
 
     app.get("/products", async (req, res) => {
@@ -183,7 +208,7 @@ async function run() {
       res.send(products);
     })
 
-    
+
 
     app.listen(port, () => {
       console.log("Running on port", port);
