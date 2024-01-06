@@ -1,13 +1,12 @@
-
 const express = require("express");
 const app = express();
 require("dotenv").config();
 const cors = require("cors");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 app.use(cors());
 app.use(express.json());
 const { v4: uuidv4 } = require("uuid");
-
+const SSLCommerzPayment = require('sslcommerz-lts')
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
@@ -36,6 +35,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+///SSL
+const store_id = process.env.STORED_ID
+const store_passwd = process.env.STORED_PASS
+const is_live = false
+
 
 async function run() {
   try {
@@ -43,19 +47,22 @@ async function run() {
     const database = client.db("nature_nexus");
     const usersCollection = database.collection("Users");
     const productCollection = database.collection("products");
-
+    const soldCollections = database.collection("sold");
+    const reviewCollection = database.collection("review");
     //register the user
+
 
     app.post("/register", async (req, res) => {
       try {
-        const { name, address, email, password,role } = req.body;
+        const { name, address, email, password, } = req.body;
         const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: "User already exists" });
         }
         const verificationToken = uuidv4();
         const user = {
-          role:"user",
+
+          role: "user",
           name,
           address,
           email,
@@ -63,6 +70,7 @@ async function run() {
           verificationToken,
           verified: false,
         };
+
         const result = await usersCollection.insertOne(user);
         const otp = generateOTP(); // Generate OTP
         otpMap[email] = otp; // Store OTP for the user's email
@@ -123,50 +131,51 @@ async function run() {
       }
     });
 
+
     //user login
     app.post("/login", async (req, res) => {
       const { email, password } = req.body;
       const user = await usersCollection.findOne({ email });
-    
+
       if (!user) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
-    
+
       // Compare the provided password with the stored password
       if (password !== user.password) {
         return res.status(401).json({ error: "Invalid email or password" });
       }
-    
+
       // Generate JWT token
       const token = jwt.sign(
         { userId: user._id, role: user.role || "user" }, // Ensure user.role exists or default to "user"
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
       );
-    
+
       res.json({ message: "Login successfully", token, role: user.role });
     });
-    
+
     //admin add
     app.post("/admin", async (req, res) => {
       try {
         const { email, password } = req.body;
-    
+
         // Assuming role is hardcoded as "admin" for admin registrations
         const user = {
           role: "admin", // Set the role to "admin" for admin registrations
           email,
           password,
         };
-    
+
         const result = await usersCollection.insertOne(user);
-    
+
         const token = jwt.sign(
           { userId: result.insertedId, role: user.role },
           process.env.JWT_SECRET,
           { expiresIn: "1d" }
         );
-    
+
         res.json({
           message: "Admin registered successfully",
           token,
@@ -177,20 +186,17 @@ async function run() {
         res.status(500).json({ message: "An error occurred" });
       }
     });
-    
-
-
+    ///logout
     app.post("/logout", (req, res) => {
       const token = req.headers.authorization;
       delete loggedInUsers[token];
       res.json({ message: "Logged out successfully" });
     });
 
-
     //add  all products
     app.post("/products", async (req, res) => {
-      const { name, price, category, image } = req.body;
-      const product = { name, price, category, image };
+      const { name, price, category, image, description } = req.body;
+      const product = { name, price, category, image, description };
       try {
         const result = await productCollection.insertOne(product);
         res.json({ message: "Product added successfully" });
@@ -200,15 +206,158 @@ async function run() {
     });
 
     // get products
-
     app.get("/products", async (req, res) => {
       const product = {};
       const cursor = productCollection.find(product);
       const products = await cursor.toArray();
       res.send(products);
     })
+    // delete products
+    app.delete("/product/:id", async (req, res) => {
+      const id = req.params.id;
+      const deletedProduct = { _id: new ObjectId(id) };
+      const result = await productCollection.deleteOne(deletedProduct)
+      res.json(result);
+
+    });
+    //update products
+    app.put("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const { name, price, image, description } = req.body;
+
+      try {
+        const result = await productCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { name, price, image, description, } }
+        );
+
+        if (result.modifiedCount > 0) {
+          res.json({ message: "Book updated successfully" });
+        } else {
+          res.status(404).json({ message: "Book not found" });
+        }
+      } catch (error) {
+        console.error("Error updating book:", error);
+        res.status(500).json({ message: "An error occurred while updating the book" });
+      }
+    });
+    // get my order 
 
 
+    //SSL Payment
+    const tran_id = new ObjectId().toString();
+    app.post("/purchase", async (req, res) => {
+      console.log(req.body)
+      const product = await productCollection.findOne({
+        _id: new ObjectId(req.body.productId)
+      })
+      const order = req.body;
+
+      // console.log(product)
+      const data = {
+        total_amount: order.totalPrice,
+        currency: 'BDT',
+        tran_id: tran_id, // use unique tran_id for each api call
+        success_url: `http://localhost:8000/payment/success/${tran_id}`,
+        fail_url: `http://localhost:8000/payment/fail/${tran_id}`,
+        cancel_url: 'http://localhost:3030/cancel',
+        ipn_url: 'http://localhost:3030/ipn',
+        shipping_method: 'Courier',
+        product_name: order.productName,
+        product_category: 'Electronic',
+        product_profile: 'general',
+        cus_name: order.customerName,
+        product_quantity: order.quantity,
+        cus_email: 'customer@example.com',
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: order.phoneNumber,
+        cus_fax: '01711111111',
+        ship_name: 'Customer Name',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+      };
+      console.log(data)
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      sslcz.init(data).then(apiResponse => {
+        let GatewayPageURL = apiResponse.GatewayPageURL
+        res.send({ url: GatewayPageURL });
+
+        //new dats create for order
+        const finalOrder = {
+          product, paidStatus: false, transjectionId: tran_id
+        };
+        const result = soldCollections.insertOne(finalOrder)
+
+        console.log('Redirecting to: ', GatewayPageURL)
+      });
+      //payment sucess 
+      app.post("/payment/success/:tranId", async (req, res) => {
+        console.log(req.params.tranId);
+        const result = await soldCollections.updateOne({ transjectionId: req.params.tranId },
+          {
+            $set: { paidStatus: true },
+          }
+        );
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:3000/payment/success/${req.params.tranId}`)
+        }
+
+      });
+      //if payment failed
+      app.post("/payment/fail/:tranId", async (req, res) => {
+        // console.log(req.params.tranId);
+        const result = await soldCollections.deleteOne({
+          transjectionId: req.params.tranId
+        });
+        if (result.deletedCount) {
+          res.redirect(`http://localhost:3000/payment/fail/${req.params.tranId}`)
+        }
+
+      })
+
+    })
+
+
+
+    // get api for all product
+    app.get('/review', async (req, res) => {
+      const cursor = reviewCollection.find({});
+      const reviews = await cursor.toArray();
+      res.send(reviews);
+    });
+    app.post('/review', async (req, res) => {
+      const review = req.body;
+      const resultR = await reviewCollection.insertOne(review);
+      console.log(resultR);
+      res.json(resultR);
+    });
+
+    // get a book by ID
+    app.get("/product/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log("Received ID:", id);
+      const book = { _id: new ObjectId(id) };
+      const result = await productCollection.findOne(book)
+      res.json(result);
+
+    });
+
+      // get products
+      app.get("/soldProduct", async (req, res) => {
+        const product = {};
+        const cursor = soldCollections.find(product);
+        const products = await cursor.toArray();
+        res.send(products);
+      })
 
     app.listen(port, () => {
       console.log("Running on port", port);
@@ -217,14 +366,6 @@ async function run() {
     // await client.close();
   }
 }
-function generateVerificationToken() {
-  // Generate a random string as a token
-  const characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return token;
-}
+
+
 run().catch(console.dir);
