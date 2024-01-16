@@ -60,9 +60,11 @@ async function run() {
           return res.status(409).json({ error: "User already exists" });
         }
         const verificationToken = uuidv4();
+        const userId= uuidv4()
         const user = {
 
           role: "user",
+          userId,
           name,
           address,
           email,
@@ -252,9 +254,11 @@ async function run() {
         _id: new ObjectId(req.body.productId)
       })
       const order = req.body;
+      const userId = order.userId; // Assuming userId is part of the order information
 
       // console.log(product)
       const data = {
+        userId: userId,
         total_amount: order.totalPrice,
         currency: 'BDT',
         tran_id: tran_id, // use unique tran_id for each api call
@@ -293,7 +297,7 @@ async function run() {
 
         //new dats create for order
         const finalOrder = {
-          product, paidStatus: false, transjectionId: tran_id
+          product, paidStatus: false, transjectionId: tran_id, userId,
         };
         const result = soldCollections.insertOne(finalOrder)
 
