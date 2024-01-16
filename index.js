@@ -297,7 +297,8 @@ async function run() {
 
         //new dats create for order
         const finalOrder = {
-          product, paidStatus: false, transjectionId: tran_id, userId,
+          product, paidStatus: false, transjectionId: tran_id, 
+          userId,
         };
         const result = soldCollections.insertOne(finalOrder)
 
