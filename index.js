@@ -51,7 +51,6 @@ async function run() {
     const reviewCollection = database.collection("review");
     //register the user
 
-
     app.post("/register", async (req, res) => {
       try {
         const { name, address, email, password, } = req.body;
@@ -60,7 +59,7 @@ async function run() {
           return res.status(409).json({ error: "User already exists" });
         }
         const verificationToken = uuidv4();
-        const userId= uuidv4()
+        const userId = uuidv4()
         const user = {
 
           role: "user",
@@ -138,7 +137,7 @@ async function run() {
     app.post("/login", async (req, res) => {
       const { email, password } = req.body;
       const user = await usersCollection.findOne({ email });
-
+      console.log(user)
       if (!user) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
@@ -155,15 +154,13 @@ async function run() {
         { expiresIn: "1h" }
       );
 
-      res.json({ message: "Login successfully", token, role: user.role });
+      res.json({ message: "Login successfully", token, role: user.role, userId: user._id });
     });
 
     //admin add
     app.post("/admin", async (req, res) => {
       try {
         const { email, password } = req.body;
-
-        // Assuming role is hardcoded as "admin" for admin registrations
         const user = {
           role: "admin", // Set the role to "admin" for admin registrations
           email,
@@ -297,7 +294,7 @@ async function run() {
 
         //new dats create for order
         const finalOrder = {
-          product, paidStatus: false, transjectionId: tran_id, 
+          product, paidStatus: false, transjectionId: tran_id,
           userId,
         };
         const result = soldCollections.insertOne(finalOrder)
@@ -356,13 +353,29 @@ async function run() {
 
     });
 
-      // get products
-      app.get("/soldProduct", async (req, res) => {
-        const product = {};
-        const cursor = soldCollections.find(product);
-        const products = await cursor.toArray();
-        res.send(products);
-      })
+    // get products
+    app.get("/soldProduct", async (req, res) => {
+      const product = {};
+      const cursor = soldCollections.find(product);
+      const products = await cursor.toArray();
+      res.send(products);
+    })
+    // get products by userId
+    app.get("/soldProduct/:userId", async (req, res) => {
+      const userId = req.params.userId;
+      console.log(userId)
+      const product = { userId };
+      const cursor = soldCollections.find(product);
+      const products = await cursor.toArray();
+      res.send(products);
+    })
+    // delete specific product of a user
+    app.delete("/soldProduct/:id", async (req, res) => {
+      const id = req.params.id;
+      const deletedProduct = { _id: new ObjectId(id) };
+      const result = await soldCollections.deleteOne(deletedProduct)
+      res.json(result);
+    });
 
     app.listen(port, () => {
       console.log("Running on port", port);
