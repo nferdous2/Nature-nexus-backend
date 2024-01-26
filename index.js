@@ -49,6 +49,8 @@ async function run() {
     const productCollection = database.collection("products");
     const soldCollections = database.collection("sold");
     const reviewCollection = database.collection("review");
+    const animalCollection = database.collection("animal");
+
     //register the user
 
     app.post("/register", async (req, res) => {
@@ -240,9 +242,15 @@ async function run() {
         res.status(500).json({ message: "An error occurred while updating the book" });
       }
     });
-    // get my order 
-
-
+     // get a product by ID for user &Admin
+        app.get("/product/:id", async (req, res) => {
+          const id = req.params.id;
+          console.log("Received ID:", id);
+          const book = { _id: new ObjectId(id) };
+          const result = await productCollection.findOne(book)
+          res.json(result);
+    
+        });
     //SSL Payment
     const tran_id = new ObjectId().toString();
     app.post("/purchase", async (req, res) => {
@@ -251,8 +259,10 @@ async function run() {
         _id: new ObjectId(req.body.productId)
       })
       const order = req.body;
-      const userId = order.userId; // Assuming userId is part of the order information
-
+      const userId = order.userId;
+      const customerName = order.customerName;
+      const address = order.address;
+      const phoneNumber = order.phoneNumber;
       // console.log(product)
       const data = {
         userId: userId,
@@ -261,30 +271,12 @@ async function run() {
         tran_id: tran_id, // use unique tran_id for each api call
         success_url: `http://localhost:8000/payment/success/${tran_id}`,
         fail_url: `http://localhost:8000/payment/fail/${tran_id}`,
-        cancel_url: 'http://localhost:3030/cancel',
-        ipn_url: 'http://localhost:3030/ipn',
-        shipping_method: 'Courier',
         product_name: order.productName,
-        product_category: 'Electronic',
-        product_profile: 'general',
         cus_name: order.customerName,
         product_quantity: order.quantity,
         cus_email: 'customer@example.com',
-        cus_add1: 'Dhaka',
-        cus_add2: 'Dhaka',
-        cus_city: 'Dhaka',
-        cus_state: 'Dhaka',
-        cus_postcode: '1000',
-        cus_country: 'Bangladesh',
+        cus_add1: order.address,
         cus_phone: order.phoneNumber,
-        cus_fax: '01711111111',
-        ship_name: 'Customer Name',
-        ship_add1: 'Dhaka',
-        ship_add2: 'Dhaka',
-        ship_city: 'Dhaka',
-        ship_state: 'Dhaka',
-        ship_postcode: 1000,
-        ship_country: 'Bangladesh',
       };
       console.log(data)
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
@@ -295,12 +287,13 @@ async function run() {
         //new dats create for order
         const finalOrder = {
           product, paidStatus: false, transjectionId: tran_id,
-          userId,
+          userId, customerName, address, phoneNumber
         };
         const result = soldCollections.insertOne(finalOrder)
 
         console.log('Redirecting to: ', GatewayPageURL)
       });
+
       //payment sucess 
       app.post("/payment/success/:tranId", async (req, res) => {
         console.log(req.params.tranId);
@@ -328,31 +321,43 @@ async function run() {
 
     })
 
-
-
-    // get api for all product
-    app.get('/review', async (req, res) => {
-      const cursor = reviewCollection.find({});
-      const reviews = await cursor.toArray();
-      res.send(reviews);
+    // user buy animal
+    app.post("/animal", async (req, res) => {
+      const { phone, address, animal, userId } = req.body;
+      // console.log(phone, address, animal, userId)
+      // return;
+      const newAnimal = { phone, address, animal, userId, status: false };
+      try {
+        const result = await animalCollection.insertOne(newAnimal);
+        res.status(200).json({ message: "Animal added successfully" });
+      } catch (error) {
+        res.status(500).json({ message: "An error occurred while adding the product" });
+      }
     });
-    app.post('/review', async (req, res) => {
-      const review = req.body;
-      const resultR = await reviewCollection.insertOne(review);
-      console.log(resultR);
-      res.json(resultR);
-    });
+    // get animal by userId
+    app.get("/animal/:userId", async (req, res) => {
+      const userId = req.params.userId;
+      const animal = { userId };
+      const cursor = animalCollection.find(animal);
+      const animals = await cursor.toArray();
+      res.send(animals);
+    })
 
-    // get a book by ID
-    app.get("/product/:id", async (req, res) => {
+    app.patch("/animal/:id", async (req, res) => {
       const id = req.params.id;
-      console.log("Received ID:", id);
-      const book = { _id: new ObjectId(id) };
-      const result = await productCollection.findOne(book)
-      res.json(result);
-
+      const { status } = req.body;
+      const result = await animalCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status } }
+      );
+      if (result.modifiedCount > 0) {
+        res.json({ message: "Animal updated successfully" });
+      } else {
+        res.status(404).json({ message: "Animal not found" });
+      }
     });
 
+    
     // get products
     app.get("/soldProduct", async (req, res) => {
       const product = {};
@@ -375,6 +380,34 @@ async function run() {
       const deletedProduct = { _id: new ObjectId(id) };
       const result = await soldCollections.deleteOne(deletedProduct)
       res.json(result);
+    });
+
+    //tree
+    app.post("/donation", async (req, res) => {
+      const { phoneNumber, address, name, userId } = req.body;
+      // console.log(phone, address, animal, userId)
+      // return;
+      const donationForm = { phoneNumber, address, name, userId, status: false };
+      try {
+        const result = await soldCollections.insertOne(donationForm);
+        res.status(200).json({ message: "form added successfully" });
+      } catch (error) {
+        res.status(500).json({ message: "An error occurred while adding the data" });
+      }
+    });
+
+    
+    // review
+    app.get('/review', async (req, res) => {
+      const cursor = reviewCollection.find({});
+      const reviews = await cursor.toArray();
+      res.send(reviews);
+    });
+    app.post('/review', async (req, res) => {
+      const review = req.body;
+      const resultR = await reviewCollection.insertOne(review);
+      console.log(resultR);
+      res.json(resultR);
     });
 
     app.listen(port, () => {
