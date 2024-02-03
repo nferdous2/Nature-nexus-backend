@@ -17,6 +17,7 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
 });
 
+
 const port = process.env.PORT || 8000;
 let loggedInUsers = {}; // Store logged in users
 const otpMap = {}; // Store OTPs for users
@@ -264,6 +265,7 @@ async function run() {
       const address = order.address;
       const phoneNumber = order.phoneNumber;
       // console.log(product)
+      // console.log(product)
       const data = {
         userId: userId,
         total_amount: order.totalPrice,
@@ -271,12 +273,30 @@ async function run() {
         tran_id: tran_id, // use unique tran_id for each api call
         success_url: `http://localhost:8000/payment/success/${tran_id}`,
         fail_url: `http://localhost:8000/payment/fail/${tran_id}`,
+        cancel_url: 'http://localhost:3030/cancel',
+        ipn_url: 'http://localhost:3030/ipn',
+        shipping_method: 'Courier',
         product_name: order.productName,
+        product_category: 'Electronic',
+        product_profile: 'general',
         cus_name: order.customerName,
         product_quantity: order.quantity,
         cus_email: 'customer@example.com',
         cus_add1: order.address,
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
         cus_phone: order.phoneNumber,
+        cus_fax: '01711111111',
+        ship_name: 'Customer Name',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
       };
       console.log(data)
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
@@ -286,14 +306,12 @@ async function run() {
 
         //new dats create for order
         const finalOrder = {
-          product, paidStatus: false, transjectionId: tran_id,
-          userId, customerName, address, phoneNumber
+          product, paidStatus: false, transjectionId: tran_id, userId, customerName, address, phoneNumber
         };
         const result = soldCollections.insertOne(finalOrder)
 
         console.log('Redirecting to: ', GatewayPageURL)
       });
-
       //payment sucess 
       app.post("/payment/success/:tranId", async (req, res) => {
         console.log(req.params.tranId);
@@ -410,6 +428,7 @@ async function run() {
       res.json(resultR);
     });
 
+    
     app.listen(port, () => {
       console.log("Running on port", port);
     });
@@ -417,6 +436,7 @@ async function run() {
     // await client.close();
   }
 }
+
 
 
 run().catch(console.dir);
