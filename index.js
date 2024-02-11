@@ -9,6 +9,9 @@ const { v4: uuidv4 } = require("uuid");
 const SSLCommerzPayment = require('sslcommerz-lts')
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const multer = require("multer");
+const path = require('path');
+const fs = require('fs');
 
 // mongodb connection.
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.yhxur.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -41,7 +44,22 @@ const store_id = process.env.STORED_ID
 const store_passwd = process.env.STORED_PASS
 const is_live = false
 
+// Multer configuration
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const destinationPath = path.join(__dirname, "article/");
+    fs.mkdirSync(destinationPath, { recursive: true }); // Create the 'articles' directory if it doesn't exist
+    cb(null, destinationPath);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
 
+
+const upload = multer({ storage: storage }).fields([
+  { name: "image", maxCount: 1 },
+]);
 async function run() {
   try {
     await client.connect();
@@ -51,7 +69,7 @@ async function run() {
     const soldCollections = database.collection("sold");
     const reviewCollection = database.collection("review");
     const animalCollection = database.collection("animal");
-
+    
     //register the user
 
     app.post("/register", async (req, res) => {
@@ -194,7 +212,21 @@ async function run() {
       delete loggedInUsers[token];
       res.json({ message: "Logged out successfully" });
     });
+ // get USer
+ app.get("/users", async (req, res) => {
+  const user = {};
+  const cursor = usersCollection.find(user);
+  const users = await cursor.toArray();
+  res.send(users);
+})
+// delete user
+app.delete("/user/:id", async (req, res) => {
+  const id = req.params.id;
+  const deletedUser = { _id: new ObjectId(id) };
+  const result = await usersCollection.deleteOne(deletedUser)
+  res.json(result);
 
+});
     //add  all products
     app.post("/products", async (req, res) => {
       const { name, price, category, image, description } = req.body;
@@ -222,6 +254,7 @@ async function run() {
       res.json(result);
 
     });
+
     //update products
     app.put("/products/:id", async (req, res) => {
       const id = req.params.id;
@@ -243,15 +276,15 @@ async function run() {
         res.status(500).json({ message: "An error occurred while updating the book" });
       }
     });
-     // get a product by ID for user &Admin
-        app.get("/product/:id", async (req, res) => {
-          const id = req.params.id;
-          console.log("Received ID:", id);
-          const book = { _id: new ObjectId(id) };
-          const result = await productCollection.findOne(book)
-          res.json(result);
-    
-        });
+    // get a product by ID for user &Admin
+    app.get("/product/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log("Received ID:", id);
+      const book = { _id: new ObjectId(id) };
+      const result = await productCollection.findOne(book)
+      res.json(result);
+
+    });
     //SSL Payment
     const tran_id = new ObjectId().toString();
     app.post("/purchase", async (req, res) => {
@@ -360,22 +393,53 @@ async function run() {
       const animals = await cursor.toArray();
       res.send(animals);
     })
-
-    app.patch("/animal/:id", async (req, res) => {
-      const id = req.params.id;
-      const { status } = req.body;
-      const result = await animalCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { status } }
-      );
-      if (result.modifiedCount > 0) {
-        res.json({ message: "Animal updated successfully" });
-      } else {
-        res.status(404).json({ message: "Animal not found" });
-      }
+    app.patch("/animal/:id", (req, res) => {
+      upload(req, res, async (error) => {
+        if (error) {
+          console.error(error);
+          return res.status(400).send({ message: "Error uploading files" });
+        }
+    
+        const id = req.params.id;
+        const { status } = req.body;
+    
+        let updatedAnimal = { $set: { status } };
+    
+        // Check if files are present in the request
+        if (req.files && req.files["image"] && req.files["image"].length > 0) {
+          const imageFile = req.files["image"][0];
+          updatedAnimal.$set.image = imageFile.filename; // Update image field if a new image is uploaded
+        }
+  
+        const result = await animalCollection.updateOne(
+          { _id: new ObjectId(id) },
+          updatedAnimal
+        );
+    
+        if (result.modifiedCount > 0) {
+          res.json({ message: "Animal updated successfully" });
+        } else {
+          res.status(404).json({ message: "Animal not found" });
+        }
+      });
     });
 
     
+    // app.patch("/animal/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const { status } = req.body;
+    //   const result = await animalCollection.updateOne(
+    //     { _id: new ObjectId(id) },
+    //     { $set: { status } }
+    //   );
+    //   if (result.modifiedCount > 0) {
+    //     res.json({ message: "Animal updated successfully" });
+    //   } else {
+    //     res.status(404).json({ message: "Animal not found" });
+    //   }
+    // });
+
+
     // get products
     app.get("/soldProduct", async (req, res) => {
       const product = {};
@@ -414,7 +478,7 @@ async function run() {
       }
     });
 
-    
+
     // review
     app.get('/review', async (req, res) => {
       const cursor = reviewCollection.find({});
@@ -428,7 +492,7 @@ async function run() {
       res.json(resultR);
     });
 
-    
+
     app.listen(port, () => {
       console.log("Running on port", port);
     });
