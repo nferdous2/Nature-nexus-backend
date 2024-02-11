@@ -69,7 +69,7 @@ async function run() {
     const soldCollections = database.collection("sold");
     const reviewCollection = database.collection("review");
     const animalCollection = database.collection("animal");
-    
+
     //register the user
 
     app.post("/register", async (req, res) => {
@@ -212,21 +212,21 @@ async function run() {
       delete loggedInUsers[token];
       res.json({ message: "Logged out successfully" });
     });
- // get USer
- app.get("/users", async (req, res) => {
-  const user = {};
-  const cursor = usersCollection.find(user);
-  const users = await cursor.toArray();
-  res.send(users);
-})
-// delete user
-app.delete("/user/:id", async (req, res) => {
-  const id = req.params.id;
-  const deletedUser = { _id: new ObjectId(id) };
-  const result = await usersCollection.deleteOne(deletedUser)
-  res.json(result);
+    // get USer
+    app.get("/users", async (req, res) => {
+      const user = {};
+      const cursor = usersCollection.find(user);
+      const users = await cursor.toArray();
+      res.send(users);
+    })
+    // delete user
+    app.delete("/user/:id", async (req, res) => {
+      const id = req.params.id;
+      const deletedUser = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(deletedUser)
+      res.json(result);
 
-});
+    });
     //add  all products
     app.post("/products", async (req, res) => {
       const { name, price, category, image, description } = req.body;
@@ -393,29 +393,30 @@ app.delete("/user/:id", async (req, res) => {
       const animals = await cursor.toArray();
       res.send(animals);
     })
+    // post the animal after recieving
     app.patch("/animal/:id", (req, res) => {
       upload(req, res, async (error) => {
         if (error) {
           console.error(error);
           return res.status(400).send({ message: "Error uploading files" });
         }
-    
+
         const id = req.params.id;
         const { status } = req.body;
-    
+
         let updatedAnimal = { $set: { status } };
-    
+
         // Check if files are present in the request
         if (req.files && req.files["image"] && req.files["image"].length > 0) {
           const imageFile = req.files["image"][0];
           updatedAnimal.$set.image = imageFile.filename; // Update image field if a new image is uploaded
         }
-  
+
         const result = await animalCollection.updateOne(
           { _id: new ObjectId(id) },
           updatedAnimal
         );
-    
+
         if (result.modifiedCount > 0) {
           res.json({ message: "Animal updated successfully" });
         } else {
@@ -423,22 +424,6 @@ app.delete("/user/:id", async (req, res) => {
         }
       });
     });
-
-    
-    // app.patch("/animal/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   const { status } = req.body;
-    //   const result = await animalCollection.updateOne(
-    //     { _id: new ObjectId(id) },
-    //     { $set: { status } }
-    //   );
-    //   if (result.modifiedCount > 0) {
-    //     res.json({ message: "Animal updated successfully" });
-    //   } else {
-    //     res.status(404).json({ message: "Animal not found" });
-    //   }
-    // });
-
 
     // get products
     app.get("/soldProduct", async (req, res) => {
@@ -464,7 +449,7 @@ app.delete("/user/:id", async (req, res) => {
       res.json(result);
     });
 
-    //tree
+    //tree donation
     app.post("/donation", async (req, res) => {
       const { phoneNumber, address, name, userId } = req.body;
       // console.log(phone, address, animal, userId)
@@ -485,6 +470,7 @@ app.delete("/user/:id", async (req, res) => {
       const reviews = await cursor.toArray();
       res.send(reviews);
     });
+    // for post review
     app.post('/review', async (req, res) => {
       const review = req.body;
       const resultR = await reviewCollection.insertOne(review);
