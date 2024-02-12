@@ -47,7 +47,7 @@ const is_live = false
 // Multer configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const destinationPath = path.join(__dirname, "article/");
+    const destinationPath = path.join(__dirname, "animal/");
     fs.mkdirSync(destinationPath, { recursive: true }); // Create the 'articles' directory if it doesn't exist
     cb(null, destinationPath);
   },
