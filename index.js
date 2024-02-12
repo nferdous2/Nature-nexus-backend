@@ -297,8 +297,7 @@ async function run() {
       const customerName = order.customerName;
       const address = order.address;
       const phoneNumber = order.phoneNumber;
-      // console.log(product)
-      // console.log(product)
+      // console.log(product)      
       const data = {
         userId: userId,
         total_amount: order.totalPrice,
