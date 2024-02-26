@@ -267,21 +267,21 @@ async function run() {
         );
 
         if (result.modifiedCount > 0) {
-          res.json({ message: "Book updated successfully" });
+          res.json({ message: "product updated successfully" });
         } else {
-          res.status(404).json({ message: "Book not found" });
+          res.status(404).json({ message: "product not found" });
         }
       } catch (error) {
-        console.error("Error updating book:", error);
-        res.status(500).json({ message: "An error occurred while updating the book" });
+        console.error("Error updating product:", error);
+        res.status(500).json({ message: "An error occurred while updating the product" });
       }
     });
     // get a product by ID for user &Admin
     app.get("/product/:id", async (req, res) => {
       const id = req.params.id;
       console.log("Received ID:", id);
-      const book = { _id: new ObjectId(id) };
-      const result = await productCollection.findOne(book)
+      const product = { _id: new ObjectId(id) };
+      const result = await productCollection.findOne(product)
       res.json(result);
 
     });
@@ -303,8 +303,8 @@ async function run() {
         total_amount: order.totalPrice,
         currency: 'BDT',
         tran_id: tran_id, // use unique tran_id for each api call
-        success_url: `https://nature-nexus-backend.vercel.app/payment/success/${tran_id}`,
-        fail_url: `https://nature-nexus-backend.vercel.app/payment/fail/${tran_id}`,
+        success_url: `http://localhost:8000/payment/success/${tran_id}`,
+        fail_url: `http://localhost:8000/payment/fail/${tran_id}`,
         cancel_url: 'http://localhost:3030/cancel',
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
@@ -353,7 +353,7 @@ async function run() {
           }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/success/${req.params.tranId}`)
+          res.redirect(`http://localhost:3000/payment/success/${req.params.tranId}`)
         }
 
       });
@@ -364,7 +364,7 @@ async function run() {
           transjectionId: req.params.tranId
         });
         if (result.deletedCount) {
-          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/fail/${req.params.tranId}`)
+          res.redirect(`http://localhost:3000/payment/fail/${req.params.tranId}`)
         }
 
       })
