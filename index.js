@@ -28,7 +28,7 @@ const otpMap = {}; // Store OTPs for users
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000);
 }
-
+//nodemailer for sending emails to users
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -42,13 +42,13 @@ const transporter = nodemailer.createTransport({
 ///SSL
 const store_id = process.env.STORED_ID
 const store_passwd = process.env.STORED_PASS
-const is_live = false
+const is_live = false 
 
 // Multer configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const destinationPath = path.join(__dirname, "animal/");
-    fs.mkdirSync(destinationPath, { recursive: true }); // Create the 'articles' directory if it doesn't exist
+    fs.mkdirSync(destinationPath, { recursive: true });
     cb(null, destinationPath);
   },
   filename: function (req, file, cb) {
@@ -140,8 +140,8 @@ async function run() {
           // Update the user's 'verified' status in the database
           await usersCollection.updateOne({ email }, { $set: { verified: true } });
 
-          // Optionally, you can remove the OTP from otpMap once verified
-          delete otpMap[email];
+          // // Optionally, you can remove the OTP from otpMap once verified
+          // delete otpMap[email];
 
           return res.json({ message: "Email verification successful" });
         } else {
@@ -303,8 +303,8 @@ async function run() {
         total_amount: order.totalPrice,
         currency: 'BDT',
         tran_id: tran_id, // use unique tran_id for each api call
-        success_url: `http://localhost:8000/payment/success/${tran_id}`,
-        fail_url: `http://localhost:8000/payment/fail/${tran_id}`,
+        success_url: `https://nature-nexus-backend.vercel.app/payment/success/${tran_id}`,
+        fail_url: `https://nature-nexus-backend.vercel.app/payment/fail/${tran_id}`,
         cancel_url: 'http://localhost:3030/cancel',
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
@@ -353,7 +353,7 @@ async function run() {
           }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:3000/payment/success/${req.params.tranId}`)
+          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/success/${req.params.tranId}`)
         }
 
       });
@@ -364,7 +364,7 @@ async function run() {
           transjectionId: req.params.tranId
         });
         if (result.deletedCount) {
-          res.redirect(`http://localhost:3000/payment/fail/${req.params.tranId}`)
+          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/fail/${req.params.tranId}`)
         }
 
       })
@@ -461,7 +461,6 @@ async function run() {
         res.status(500).json({ message: "An error occurred while adding the data" });
       }
     });
-
 
     // review
     app.get('/review', async (req, res) => {
