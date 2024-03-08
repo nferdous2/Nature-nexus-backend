@@ -285,6 +285,7 @@ async function run() {
       res.json(result);
 
     });
+
     //SSL Payment
     const tran_id = new ObjectId().toString();
     app.post("/purchase", async (req, res) => {
@@ -415,7 +416,7 @@ async function run() {
           { _id: new ObjectId(id) },
           updatedAnimal
         );
-
+//img sucess
         if (result.modifiedCount > 0) {
           res.json({ message: "Animal updated successfully" });
         } else {
