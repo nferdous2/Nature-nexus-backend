@@ -353,7 +353,7 @@ async function run() {
           }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/success/${req.params.tranId}`)
+          res.redirect(`https://nature-nexus.vercel.app/payment/success/${req.params.tranId}`)
         }
 
       });
@@ -364,7 +364,7 @@ async function run() {
           transjectionId: req.params.tranId
         });
         if (result.deletedCount) {
-          res.redirect(`https://nature-nexus-frontend.vercel.app/payment/fail/${req.params.tranId}`)
+          res.redirect(`https://nature-nexus.vercel.app/payment/fail/${req.params.tranId}`)
         }
 
       })
